@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
-const bcrypt = require('bcrypt')
+const bcrypt = require('bcrypt');
+const { createTokenForuser } = require('../somefunctions/createtoken');
 
 const userSchema = mongoose.Schema({
     fullname: {
@@ -16,6 +17,10 @@ const userSchema = mongoose.Schema({
         // required: true,
     },
     password: {
+        type: String,
+        required: true,
+    },
+    password2: {
         type: String,
         required: true,
     },
@@ -48,27 +53,39 @@ userSchema.pre('save', function (next) {
     });
 });
 
-userSchema.static("matchpass", async function (email, password) {
+userSchema.static("matchpasswordAndGenerateToken", async function (email, password) {
     // console.log(this)
     const user = await this.findOne({ email })
     if (!user) throw new Error("no user founfd - user.module.js")
     const salt = user.salt;
     const hashpassword = user.password;
+    
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      throw new Error("Password does not match - user.module.js");
+    }
 
-    bcrypt.hash(password, salt, function (err, hash) {
-        // if (err) return false;
-        password = hash;
+//    try {
+//      await bcrypt.hash(password, salt, function (err, hash) {
+//          // if (err) return false;
+//          password = hash;
+ 
+//          if (hashpassword !== password) throw new Error("password not match - user.module.js")
+//          // return (...user,password: undefined)
+//          // console.log(user);
+//          // console.log("here");
+//      });
+//    } catch (error) {
+//     return { success: false, message: error.message };
 
-        if (hashpassword !== password) throw new Error("password not match - user.module.js")
-        // return (...user,password: undefined)
-        // console.log(user);
-        // console.log("here");
-    });
+//    }
     // console.log("here last");
 
     // return {...user , password:undefined , salt:undefined};
+    const token = createTokenForuser(user)
 
-    return { password:undefined, salt:undefined, ...user };
+    return token;
+    // return { password:undefined, salt:undefined, ...user };
 
 })
 const UserModel = mongoose.model('user', userSchema)
